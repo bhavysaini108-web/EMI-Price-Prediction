@@ -8,8 +8,8 @@ import pandas as pd
 # -----------------------------
 @st.cache_resource
 def load_models():
-    classifier = joblib.load("classifier_xgb.pkl")  #  saved XGBoost classification model
-    regressor = joblib.load("regressor_xgb.pkl")    #  saved XGBoost regression model
+    classifier = joblib.load("xgboost_classifier_model.pkl")  #  saved XGBoost classification model
+    regressor = joblib.load("xgboost_regressor_model.pkl")    #  saved XGBoost regression model
     return classifier, regressor
 
 classifier, regressor = load_models()
@@ -41,3 +41,4 @@ if st.button("Predict"):
     st.subheader("Predictions")
     st.write(f"Classification Risk Level: **{class_pred}**")
     st.write(f"Predicted Numeric Value (Regression): **{reg_pred:.2f}**")
+
