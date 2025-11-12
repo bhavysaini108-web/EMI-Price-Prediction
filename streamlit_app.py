@@ -150,6 +150,7 @@ if st.button("Predict"):
     reg_pred = regressor.predict(input_reg)[0]
 
     st.subheader("Predictions")
-    st.write(f"Classification Risk Level: 1")
-    st.write(f"Predicted Maximum EMI: 8000")
+    st.write(f"Classification Risk Level: **{class_pred}**")
+    st.write(f"Predicted Maximum EMI: **{reg_pred:.2f}**")
+
 
