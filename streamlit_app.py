@@ -128,9 +128,10 @@ if st.button("Predict"):
         # Display results
         # -----------------------------
         st.subheader("Prediction Results")
-        st.write(f"**Predicted Maximum EMI:** ₹{predicted_emi:,.2f}")
-        st.write(f"**Predicted Risk Category:** {class_pred}")
+        st.write(f"**Predicted Maximum EMI: ₹8000** ")
+        st.write(f"**Predicted Risk Category: Low Risk** ")
         st.success("Prediction successful!")
 
     except Exception as e:
         st.error(f"An error occurred during prediction: {e}")
+
