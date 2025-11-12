@@ -107,11 +107,13 @@ input_df = pd.DataFrame([input_dict])
 # Ensure no NaNs and correct dtypes for categorical columns
 # -----------------------------
 categorical_cols = ["gender", "marital_status", "education", "employment_type", "company_type", "house_type", "emi_scenario"]
-input_df[categorical_cols] = input_df[categorical_cols].fillna("missing").astype(str)
+for col in categorical_cols:
+    input_df[col] = input_df[col].astype(str).fillna("missing")
 
 # Numeric columns
 numeric_cols = [col for col in input_df.columns if col not in categorical_cols]
-input_df[numeric_cols] = input_df[numeric_cols].fillna(0)
+for col in numeric_cols:
+    input_df[col] = pd.to_numeric(input_df[col], errors='coerce').fillna(0)
 
 # -----------------------------
 # Predictions
@@ -138,3 +140,4 @@ if st.button("Predict"):
 
     except Exception as e:
         st.error(f"An error occurred during prediction: {e}")
+
