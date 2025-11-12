@@ -8,8 +8,8 @@ import numpy as np
 # -----------------------------
 @st.cache_resource
 def load_models():
-    classifier = joblib.load("xgboost_classifier_pipeline.pkl")  # full preprocessing + model
-    regressor = joblib.load("xgboost_regressor_pipeline.pkl")    # full preprocessing + model
+    classifier = joblib.load("xgboost_classifier_pipeline2.pkl")  # full preprocessing + model
+    regressor = joblib.load("xgboost_regressor_pipeline2.pkl")    # full preprocessing + model
     return classifier, regressor
 
 classifier, regressor = load_models()
@@ -114,4 +114,5 @@ if st.button(" Predict"):
     st.write(f"**Predicted Maximum EMI:** ₹{predicted_emi:,.2f}")
     st.write(f"**Predicted Risk Category:** {class_pred}")
     st.success("Prediction successful!")
+
 
