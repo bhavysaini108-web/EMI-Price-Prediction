@@ -8,8 +8,9 @@ import numpy as np
 # -----------------------------
 @st.cache_resource
 def load_models():
-    classifier = joblib.load("xgboost_classifier_pipeline2.pkl")  # full preprocessing + model
-    regressor = joblib.load("xgboost_regressor_pipeline2.pkl")    # full preprocessing + model
+    # Load updated pipelines (full preprocessing + model)
+    classifier = joblib.load("xgboost_classifier_pipeline2.pkl")
+    regressor = joblib.load("xgboost_regressor_pipeline2.pkl")
     return classifier, regressor
 
 classifier, regressor = load_models()
@@ -18,9 +19,7 @@ classifier, regressor = load_models()
 # App UI
 # -----------------------------
 st.title("Financial Risk Assessment Platform")
-st.write(
-    "Enter your data to get predictions for **maximum affordable EMI** and **risk level classification**."
-)
+st.write("Enter your data to get predictions for **maximum affordable EMI** and **risk level classification**.")
 
 # --- User Inputs ---
 age = st.number_input("Age", min_value=18, max_value=100, value=30)
@@ -45,9 +44,7 @@ current_emi_amount = st.number_input("Current EMI Amount", min_value=0, value=0)
 credit_score = st.number_input("Credit Score", min_value=300, max_value=900, value=700)
 bank_balance = st.number_input("Bank Balance", min_value=0, value=10000)
 emergency_fund = st.number_input("Emergency Fund", min_value=0, value=5000)
-emi_scenario = st.selectbox(
-    "EMI Scenario", ["Education EMI", "Home Appliances EMI", "Personal Loan EMI", "Vehicle EMI"]
-)
+emi_scenario = st.selectbox("EMI Scenario", ["Education EMI", "Home Appliances EMI", "Personal Loan EMI", "Vehicle EMI"])
 requested_amount = st.number_input("Requested Loan Amount", min_value=0, value=10000)
 requested_tenure = st.number_input("Requested Tenure (months)", min_value=1, value=12)
 
@@ -55,83 +52,80 @@ requested_tenure = st.number_input("Requested Tenure (months)", min_value=1, val
 # Derived financial features
 # -----------------------------
 debt_to_income = (current_emi_amount + existing_loans) / (monthly_salary + 1e-6)
-expense_to_income = (
-    monthly_rent
-    + school_fees
-    + college_fees
-    + travel_expenses
-    + groceries_utilities
-    + other_monthly_expenses
-) / (monthly_salary + 1e-6)
+expense_to_income = (monthly_rent + school_fees + college_fees + travel_expenses +
+                     groceries_utilities + other_monthly_expenses) / (monthly_salary + 1e-6)
 affordability_ratio = requested_amount / (monthly_salary * requested_tenure + 1e-6)
 employment_stability_score = min(years_of_employment / 10, 1.0)
 
 # -----------------------------
-# Prepare input DataFrame for pipeline
+# Prepare input DataFrame
 # -----------------------------
 input_dict = {
-    "age": age,
-    "gender": gender,
-    "marital_status": marital_status,
-    "education": education,
-    "monthly_salary": monthly_salary,
-    "employment_type": employment_type,
-    "years_of_employment": years_of_employment,
-    "company_type": company_type,
-    "house_type": house_type,
-    "monthly_rent": monthly_rent,
-    "family_size": family_size,
-    "dependents": dependents,
-    "school_fees": school_fees,
-    "college_fees": college_fees,
-    "travel_expenses": travel_expenses,
-    "groceries_utilities": groceries_utilities,
-    "other_monthly_expenses": other_monthly_expenses,
-    "existing_loans": existing_loans,
-    "current_emi_amount": current_emi_amount,
-    "credit_score": credit_score,
-    "bank_balance": bank_balance,
-    "emergency_fund": emergency_fund,
-    "emi_scenario": emi_scenario,
-    "requested_amount": requested_amount,
-    "requested_tenure": requested_tenure,
-    "debt_to_income": debt_to_income,
-    "expense_to_income": expense_to_income,
-    "affordability_ratio": affordability_ratio,
-    "employment_stability_score": employment_stability_score,
+    'age': age,
+    'gender': gender,
+    'marital_status': marital_status,
+    'education': education,
+    'monthly_salary': monthly_salary,
+    'employment_type': employment_type,
+    'years_of_employment': years_of_employment,
+    'company_type': company_type,
+    'house_type': house_type,
+    'monthly_rent': monthly_rent,
+    'family_size': family_size,
+    'dependents': dependents,
+    'school_fees': school_fees,
+    'college_fees': college_fees,
+    'travel_expenses': travel_expenses,
+    'groceries_utilities': groceries_utilities,
+    'other_monthly_expenses': other_monthly_expenses,
+    'existing_loans': existing_loans,
+    'current_emi_amount': current_emi_amount,
+    'credit_score': credit_score,
+    'bank_balance': bank_balance,
+    'emergency_fund': emergency_fund,
+    'emi_scenario': emi_scenario,
+    'requested_amount': requested_amount,
+    'requested_tenure': requested_tenure,
+    'debt_to_income': debt_to_income,
+    'expense_to_income': expense_to_income,
+    'affordability_ratio': affordability_ratio,
+    'employment_stability_score': employment_stability_score
 }
 
 input_df = pd.DataFrame([input_dict])
 
 # -----------------------------
-# Ensure no NaNs and correct dtypes for categorical columns
+# Ensure correct types for pipeline
 # -----------------------------
-categorical_cols = ["gender", "marital_status", "education", "employment_type", "company_type", "house_type", "emi_scenario"]
+categorical_cols = ["gender", "marital_status", "education", 
+                    "employment_type", "company_type", "house_type", "emi_scenario"]
+numeric_cols = [col for col in input_df.columns if col not in categorical_cols]
+
+# Convert categorical columns to string
 for col in categorical_cols:
     input_df[col] = input_df[col].astype(str).fillna("missing")
 
-# Numeric columns
-numeric_cols = [col for col in input_df.columns if col not in categorical_cols]
+# Convert numeric columns to float
 for col in numeric_cols:
-    input_df[col] = pd.to_numeric(input_df[col], errors='coerce').fillna(0)
+    input_df[col] = pd.to_numeric(input_df[col], errors='coerce').fillna(0.0)
 
 # -----------------------------
 # Predictions
 # -----------------------------
 if st.button("Predict"):
     try:
-        # Predict EMI amount using regressor pipeline
+        # Predict EMI amount using the regressor
         predicted_emi = regressor.predict(input_df)[0]
 
-        # Add predicted EMI to classifier input
+        # Add the predicted EMI to classifier input
         class_input = input_df.copy()
-        class_input["max_monthly_emi"] = predicted_emi
+        class_input['max_monthly_emi'] = predicted_emi
 
-        # Predict risk classification
+        # Predict classification
         class_pred = classifier.predict(class_input)[0]
 
         # -----------------------------
-        # Display Results
+        # Display results
         # -----------------------------
         st.subheader("Prediction Results")
         st.write(f"**Predicted Maximum EMI:** ₹{predicted_emi:,.2f}")
@@ -140,4 +134,3 @@ if st.button("Predict"):
 
     except Exception as e:
         st.error(f"An error occurred during prediction: {e}")
-
