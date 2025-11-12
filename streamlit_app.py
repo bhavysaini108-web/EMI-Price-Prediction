@@ -4,23 +4,21 @@ import pandas as pd
 import numpy as np
 
 # -----------------------------
-# Load models and feature lists
+# Load pipeline models
 # -----------------------------
 @st.cache_resource
 def load_models():
-    classifier = joblib.load("xgboost_classifier_model.pkl")  # XGBoost classification
-    classifier_features = joblib.load("classifier_features.pkl")
-    regressor = joblib.load("xgboost_regressor_model.pkl")    # XGBoost regression
-    regressor_features = joblib.load("regressor_features.pkl")
-    return classifier, regressor, classifier_features, regressor_features
+    classifier = joblib.load("xgboost_classifier_pipeline.pkl")  # full preprocessing + model
+    regressor = joblib.load("xgboost_regressor_pipeline.pkl")    # full preprocessing + model
+    return classifier, regressor
 
-classifier, regressor, classifier_features, regressor_features = load_models()
+classifier, regressor = load_models()
 
 # -----------------------------
 # App UI
 # -----------------------------
 st.title("Financial Risk Assessment Platform")
-st.write("Enter your data to get classification and regression predictions.")
+st.write("Enter your data to get predictions for **maximum affordable EMI** and **risk level classification**.")
 
 # --- User Inputs ---
 age = st.number_input("Age", min_value=18, max_value=100, value=30)
@@ -50,49 +48,27 @@ requested_amount = st.number_input("Requested Loan Amount", min_value=0, value=1
 requested_tenure = st.number_input("Requested Tenure (months)", min_value=1, value=12)
 
 # -----------------------------
-# Preprocess input for models
+# Derived financial features
 # -----------------------------
-# Derived financial features for regression
 debt_to_income = (current_emi_amount + existing_loans) / (monthly_salary + 1e-6)
-expense_to_income = (monthly_rent + school_fees + college_fees + travel_expenses + groceries_utilities + other_monthly_expenses) / (monthly_salary + 1e-6)
+expense_to_income = (monthly_rent + school_fees + college_fees + travel_expenses +
+                     groceries_utilities + other_monthly_expenses) / (monthly_salary + 1e-6)
 affordability_ratio = requested_amount / (monthly_salary * requested_tenure + 1e-6)
 employment_stability_score = min(years_of_employment / 10, 1.0)
 
-# Encode categorical variables
-gender_encoded = 1 if gender == "Male" else 0
-marital_status_encoded = 1 if marital_status == "Married" else 0
-existing_loans_encoded = existing_loans  # numeric as is
-
-# One-hot encoding for education
-education_High_School = 1 if education == "High School" else 0
-education_Post_Graduate = 1 if education == "Master" else 0
-education_Professional = 1 if education == "Professional" else 0
-
-# One-hot encoding for employment type
-employment_type_Private = 1 if employment_type == "Salaried" else 0
-employment_type_Self_employed = 1 if employment_type == "Self-Employed" else 0
-
-# One-hot encoding for company type
-company_type_MNC = 1 if company_type == "MNC" else 0
-company_type_Mid_size = 1 if company_type == "Mid-size" else 0
-company_type_Small = 1 if company_type == "Small" else 0
-company_type_Startup = 1 if company_type == "Startup" else 0
-
-# One-hot encoding for house type
-house_type_Own = 1 if house_type == "Owned" else 0
-house_type_Rented = 1 if house_type == "Rented" else 0
-
-# One-hot encoding for EMI scenario
-emi_scenario_Education_EMI = 1 if emi_scenario == "Education EMI" else 0
-emi_scenario_Home_Appliances_EMI = 1 if emi_scenario == "Home Appliances EMI" else 0
-emi_scenario_Personal_Loan_EMI = 1 if emi_scenario == "Personal Loan EMI" else 0
-emi_scenario_Vehicle_EMI = 1 if emi_scenario == "Vehicle EMI" else 0
-
-# Combine all features for regression input
-reg_input_dict = {
+# -----------------------------
+# Prepare raw input for pipeline
+# -----------------------------
+input_dict = {
     'age': age,
+    'gender': gender,
+    'marital_status': marital_status,
+    'education': education,
     'monthly_salary': monthly_salary,
+    'employment_type': employment_type,
     'years_of_employment': years_of_employment,
+    'company_type': company_type,
+    'house_type': house_type,
     'monthly_rent': monthly_rent,
     'family_size': family_size,
     'dependents': dependents,
@@ -101,53 +77,41 @@ reg_input_dict = {
     'travel_expenses': travel_expenses,
     'groceries_utilities': groceries_utilities,
     'other_monthly_expenses': other_monthly_expenses,
+    'existing_loans': existing_loans,
     'current_emi_amount': current_emi_amount,
     'credit_score': credit_score,
     'bank_balance': bank_balance,
     'emergency_fund': emergency_fund,
+    'emi_scenario': emi_scenario,
     'requested_amount': requested_amount,
     'requested_tenure': requested_tenure,
     'debt_to_income': debt_to_income,
     'expense_to_income': expense_to_income,
     'affordability_ratio': affordability_ratio,
-    'employment_stability_score': employment_stability_score,
-    'gender_encoded': gender_encoded,
-    'marital_status_encoded': marital_status_encoded,
-    'existing_loans_encoded': existing_loans_encoded,
-    'education_High School': education_High_School,
-    'education_Post Graduate': education_Post_Graduate,
-    'education_Professional': education_Professional,
-    'employment_type_Private': employment_type_Private,
-    'employment_type_Self-employed': employment_type_Self_employed,
-    'company_type_MNC': company_type_MNC,
-    'company_type_Mid-size': company_type_Mid_size,
-    'company_type_Small': company_type_Small,
-    'company_type_Startup': company_type_Startup,
-    'house_type_Own': house_type_Own,
-    'house_type_Rented': house_type_Rented,
-    'emi_scenario_Education EMI': emi_scenario_Education_EMI,
-    'emi_scenario_Home Appliances EMI': emi_scenario_Home_Appliances_EMI,
-    'emi_scenario_Personal Loan EMI': emi_scenario_Personal_Loan_EMI,
-    'emi_scenario_Vehicle EMI': emi_scenario_Vehicle_EMI
+    'employment_stability_score': employment_stability_score
 }
 
-input_reg = pd.DataFrame([reg_input_dict])
-# Align columns exactly with trained model
-input_reg = input_reg.reindex(columns=regressor_features, fill_value=0)
-
-# Classification input: you can similarly align features if you saved classifier_features
-class_input = input_reg.reindex(columns=classifier_features, fill_value=0)
+input_df = pd.DataFrame([input_dict])
 
 # -----------------------------
 # Predictions
 # -----------------------------
-if st.button("Predict"):
-    # Classification
+if st.button(" Predict"):
+    # Predict EMI amount using the regressor
+    predicted_emi = regressor.predict(input_df)[0]
+
+    # Add the predicted EMI to classifier input (since classifier expects max_monthly_emi)
+    class_input = input_df.copy()
+    class_input['max_monthly_emi'] = predicted_emi
+
+    #  Predict classification
     class_pred = classifier.predict(class_input)[0]
 
-    # Regression
-    reg_pred = regressor.predict(input_reg)[0]
+    # -----------------------------
+    # Results Display
+    # -----------------------------
+    st.subheader(" Prediction Results")
+    st.write(f"**Predicted Maximum EMI:** ₹{predicted_emi:,.2f}")
+    st.write(f"**Predicted Risk Category:** {class_pred}")
+    st.success("Prediction successful!")
 
-    st.subheader("Predictions")
-    st.write(f"Classification Risk Level: **{class_pred}**")
-    st.write(f"Predicted Maximum EMI: **{reg_pred:.2f}**")
